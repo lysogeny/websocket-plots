@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>WebSocket plot</title>
+    </head>
+    <body>
+        <script>
+            var ws = new WebSocket("ws://127.0.0.1:6789/"),
+                div = document.createElement('div');
+            ws.onmessage = function (event) {
+                data = JSON.parse(event.data);
+                div.innerHTML = data.data;
+            };
+            document.body.appendChild(div);
+        </script>
+    </body>
+</html>
