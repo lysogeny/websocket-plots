@@ -7,11 +7,22 @@
         <script>
             var ws = new WebSocket("ws://127.0.0.1:6789/"),
                 div = document.createElement('div');
+            document.body.appendChild(div);
+            function sendSize() {
+                w = document.documentElement.clientWidth;
+                h = document.documentElement.clientHeight;
+                ws.send(JSON.stringify({size: [w, h], msg_type: "update"}));
+            }
+            window.addEventListener("resize", sendSize);
+            ws.onopen = function() {
+                w = document.documentElement.clientWidth;
+                h = document.documentElement.clientHeight;
+                ws.send(JSON.stringify({size: [w, h], msg_type: "register", client_type:"display"}));
+            }
             ws.onmessage = function (event) {
                 data = JSON.parse(event.data);
-                div.innerHTML = data.data;
+                div.innerHTML = data.text;
             };
-            document.body.appendChild(div);
         </script>
     </body>
 </html>
