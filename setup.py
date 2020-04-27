@@ -24,7 +24,7 @@ setup(
             'wsp-server = websocketplots.entrypoints:server',
             'wsp-monitor = websocketplots.entrypoints:monitor',
             'wsp-random = websocketplots.entrypoints:random',
-    #        'wsp-send = websocketplots.entrypoints:send'
+            'wsp-send = websocketplots.entrypoints:send'
         ]
     }
 )

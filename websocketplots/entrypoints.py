@@ -40,3 +40,18 @@ def random():
     # Setup display
     source = objects.Source(uri=args.uri, fig=fig, dpi=args.dpi, verbose=args.verbose)
     asyncio.get_event_loop().run_until_complete(source.run())
+
+def send():
+    """Send a SVG file
+
+    Kind of violates the protocol as it doesn't change sizes.
+    """
+    parser = argparse.ArgumentParser(description="SVG file plot source client")
+    parser.add_argument("-u", "--uri", help="URI", default="ws://localhost:6789")
+    parser.add_argument("-v", "--verbose", help="Be verbose", default=False, action="store_true")
+    parser.add_argument("filename", help="URI", default="ws://localhost:6789")
+    args = parser.parse_args()
+    with open(args.filename, 'r') as connection:
+        txt = connection.read()
+    source = objects.ConstSource(uri=args.uri, txt=txt, verbose=args.verbose)
+    asyncio.get_event_loop().run_until_complete(source.run())

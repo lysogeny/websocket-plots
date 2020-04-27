@@ -197,3 +197,34 @@ class Source(AbstractClient):
             self.get_figures(data["sizes"])
             await self.send(socket, self.msg_plots)
 
+class ConstSource(AbstractClient):
+    """Source client. Sends a given matplotlib figure"""
+    def __init__(self, txt, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.txt = txt
+        self.sizes = set() # {(w, h): str}kjb
+
+    @property
+    def msg_register(self):
+        """Message to register on server"""
+        return {"msg_type": "register", "client_type": "source"}
+
+    @property
+    def msg_plots(self):
+        """Message to send plot to server"""
+        return {
+            "msg_type": "plots",
+            "plots": [
+                {"size": i, "text": self.txt} for i in self.sizes
+            ]
+        }
+
+    async def client_logic(self, socket):
+        """Waits for server to tell us sizes, then sends plot"""
+        message = await socket.recv()
+        data = await self.get(message)
+        if data["msg_type"] == "sizes":
+            for size in data['sizes']:
+                self.sizes.add(tuple(size))
+            await self.send(socket, self.msg_plots)
+
