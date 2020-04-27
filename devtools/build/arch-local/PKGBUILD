@@ -1,0 +1,32 @@
+pkgname=websocketplots-devel
+pkgver=local
+pkgrel=1
+pkgdesc="Websocket based plot distribution system"
+arch=('any')
+url="https://github.com/lysogeny/websocket-plots"
+license=()
+depends=('python' 'python-websockets' 'python-matplotlib')
+makedepends=('git' 'python' 'python-setuptools')
+provides=('videotracker')
+conflicts=('videotracker-git')
+_devdir="$HOME/c/websocket-plots/"
+
+# Horribly hacky, and you should ignore this entire file
+
+#pkgver() {
+#	#cd "$srcdir/${pkgname%-devel}"
+#    cd $_devdir
+#	printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+#}
+
+build() {
+	#cd "$srcdir/${pkgname%-devel}"
+    cd $_devdir
+    python setup.py build
+}
+
+package() {
+	#cd "$srcdir/${pkgname%-devel}"
+    cd $_devdir
+    python setup.py install --root="$pkgdir/" --optimize=1 --skip-build
+}
