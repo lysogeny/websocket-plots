@@ -1,0 +1,27 @@
+pkgname=websocketplots-git
+pkgver=r7.f00b461
+pkgrel=1
+pkgdesc="Websocket based plot distribution system"
+arch=('any')
+url="https://github.com/lysogeny/websocket-plots"
+license=()
+depends=('python' 'python-websockets' 'python-matplotlib')
+makedepends=('git' 'python' 'python-setuptools')
+provides=('websocketplots')
+source=('git+ssh://git@github.com/lysogeny/websocket-plots.git')
+sha256sums=('SKIP')
+
+pkgver() {
+	cd "$srcdir/${pkgname%-git}"
+	printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+	cd "$srcdir/${pkgname%-git}"
+    python setup.py build
+}
+
+package() {
+	cd "$srcdir/${pkgname%-git}"
+    python setup.py install --root="$pkgdir/" --optimize=1 --skip-build
+}

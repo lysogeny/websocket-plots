@@ -7,8 +7,8 @@ url="https://github.com/lysogeny/websocket-plots"
 license=()
 depends=('python' 'python-websockets' 'python-matplotlib')
 makedepends=('git' 'python' 'python-setuptools')
-provides=('videotracker')
-conflicts=('videotracker-git')
+provides=('websocketplots')
+conflicts=('websocketplots-git')
 _devdir="$HOME/c/websocket-plots/"
 
 # Horribly hacky, and you should ignore this entire file
