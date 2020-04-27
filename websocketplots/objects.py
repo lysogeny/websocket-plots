@@ -1,14 +1,72 @@
+import json
 import random
+
 import websockets
 
-from . import helpers
 from . import plots
 
-class Server:
-    """A server class"""
-    def __init__(self, port=6789, host="localhost"):
+class AbstractBase:
+    """Base class for all websocket utilising classes"""
+    def __init__(self, verbose):
+        self.verbose = verbose
+
+    async def get(self, msg) -> dict:
+        """Print message if verbose and load contents"""
+        if self.verbose:
+            print(f"> {msg}")
+        return json.loads(msg)
+
+    async def send(self, socket, data: dict):
+        """JSON format message and print message if verbose"""
+        msg = json.dumps(data)
+        if self.verbose:
+            print(f"< {msg}")
+        await socket.send(msg)
+
+    async def run(self, websocket, path):
+        """Websocket handler"""
+        raise NotImplementedError
+
+class AbstractServer(AbstractBase):
+    """Server base class. Additionally provides `serve` method for serving server"""
+    def __init__(self, port, host, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.port = port
         self.host = host
+
+    async def serve(self):
+        """Server running coroutive"""
+        if self.verbose:
+            print(f"Running on {self.host}:{self.port}")
+        await websockets.serve(self.run, self.host, self.port)
+
+class AbstractClient(AbstractBase):
+    """Client baseclass. Additionally needs to define a URI to listen on"""
+    def __init__(self, uri, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.uri = uri
+
+    @property
+    def msg_register(self):
+        """Message to register on server"""
+        raise NotImplementedError
+
+    async def client_logic(self, socket):
+        """Logic for client"""
+        raise NotImplementedError
+
+    async def run(self):
+        """Client socket run. Register with server and delegate to `client_logic`"""
+        async with websockets.connect(self.uri) as socket:
+            # Register client
+            await self.send(socket, self.msg_register)
+            await self.client_logic(socket)
+
+
+class Server(AbstractServer):
+    """A server class"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.clients = dict()
         # {client: (w, h)}
         self.plots = dict()
@@ -19,12 +77,13 @@ class Server:
         return {"msg_type": "sizes", "sizes": list(set(self.clients.values()))}
 
     async def send_plot(self, websocket):
+        """Send plots to participants"""
         if self.clients[websocket] not in self.plots:
             # If there is no plot we can't just magic it out of thin air.
             # Thus I just make some empty SVG tags.
             self.plots[self.clients[websocket]] = "<SVG></SVG>"
         data = {"msg_type": "plot", "text": self.plots[self.clients[websocket]]}
-        await helpers.send(websocket, data)
+        await self.send(websocket, data)
 
     async def run_display(self, websocket, data):
         """Logic for display type clients"""
@@ -35,7 +94,7 @@ class Server:
         try:
             async for message in websocket:
                 # Then wait for resizes
-                data = await helpers.get(message)
+                data = await self.get(message)
                 if data["msg_type"] == "update":
                     self.clients[websocket] = tuple(data["size"])
                     if self.clients[websocket] in self.plots:
@@ -48,66 +107,62 @@ class Server:
     async def run_source(self, websocket, data):
         """Logic for source type clients"""
         # Send the requested plot sizes
-        await helpers.send(websocket, self.msg_sizes)
+        await self.send(websocket, self.msg_sizes)
         msg = await websocket.recv()
-        data = await helpers.get(msg)
+        data = await self.get(msg)
         if data["msg_type"] == "plots":
             # data["plots"]: [{"size": [10, 12], "text": "abc"}]
             for plot in data["plots"]:
                 self.plots[tuple(plot["size"])] = plot["text"]
                 for client in self.clients:
                     data = {"msg_type": "plot", "text": self.plots[self.clients[client]]}
-                    await helpers.send(client, data)
+                    await self.send(client, data)
 
     async def run(self, websocket, path):
         """Server logic"""
         message = await websocket.recv()
-        data = await helpers.get(message)
+        data = await self.get(message)
         if data['msg_type'] == "register":
             if data["client_type"] == "display":
                 await self.run_display(websocket, data)
             elif data["client_type"] == "source":
                 await self.run_source(websocket, data)
 
-    async def serve(self):
-        print(f"Running on {self.host}:{self.port}")
-        await websockets.serve(self.run, self.host, self.port)
-
-class Monitor:
+class Monitor(AbstractClient):
     """A simple monitor. Prints messages received, randomly resizes self after messages."""
-    def __init__(self, uri):
-        self.uri = uri
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.get_size()
-
-    def get_size(self):
-        """Gets own size"""
-        self.size = tuple(random.randrange(0, 1000) for i in range(0, 2))
 
     @property
     def msg_register(self):
+        """Message to register on server"""
         return {"msg_type": "register",
                 "client_type": "display",
                 "size": self.size}
     @property
     def msg_update(self):
+        """Message to update status on server"""
         return {"msg_type": "update",
                 "size": self.size}
 
-    async def run(self):
-        """Client logic"""
-        async with websockets.connect(self.uri) as socket:
-            # Register client
-            await helpers.send(socket, self.msg_register)
-            async for message in socket:
-                data = await helpers.get(message)
-                if random.random() > 0.5:
-                    self.get_size()
-                    await helpers.send(socket, self.msg_update)
+    def get_size(self):
+        """Gets own random size"""
+        self.size = tuple(random.randrange(0, 1000) for i in range(0, 2))
 
-class Source:
+    async def client_logic(self, socket):
+        """awaits messages and randomly resizes"""
+        async for message in socket:
+            data = await self.get(message)
+            if random.random() > 0.5:
+                self.get_size()
+                await self.send(socket, self.msg_update)
+
+
+class Source(AbstractClient):
     """Source client. Sends a given matplotlib figure"""
-    def __init__(self, uri, fig, dpi=300):
-        self.uri = uri
+    def __init__(self, fig, dpi, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.dpi = dpi
         self.fig = fig
         self.sizes = [] # tuples
@@ -115,10 +170,12 @@ class Source:
 
     @property
     def msg_register(self):
+        """Message to register on server"""
         return {"msg_type": "register", "client_type": "source"}
 
     @property
     def msg_plots(self):
+        """Message to send plots to server"""
         return {
             "msg_type": "plots",
             "plots": [
@@ -126,20 +183,17 @@ class Source:
             ]
         }
 
-    def get_figures(self, sizes):
+    def get_figures(self, sizes: list):
         """Gets plots at given sizes"""
         for size in sizes:
             actual_size = tuple(i/self.dpi for i in size)
             self.plots[tuple(size)] = plots.save_plot(self.fig, self.dpi, actual_size)
 
-    async def run(self):
-        """Client logic"""
-        async with websockets.connect(self.uri) as socket:
-            # Register client
-            await helpers.send(socket, self.msg_register)
-            message = await socket.recv()
-            data = await helpers.get(message)
-            if data["msg_type"] == "sizes":
-                self.get_figures(data["sizes"])
-                await helpers.send(socket, self.msg_plots)
+    async def client_logic(self, socket):
+        """Waits for server to tell us sizes, then creates plots and responds"""
+        message = await socket.recv()
+        data = await self.get(message)
+        if data["msg_type"] == "sizes":
+            self.get_figures(data["sizes"])
+            await self.send(socket, self.msg_plots)
 
