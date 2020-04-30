@@ -111,7 +111,7 @@ class Server(AbstractServer):
         msg = await websocket.recv()
         data = await self.get(msg)
         if data["msg_type"] == "plots":
-            # data["plots"]: [{"size": [10, 12], "text": "abc"}]
+            # data["plots"]: [{"size": [10, 12, 1], "text": "abc"}]
             for plot in data["plots"]:
                 self.plots[tuple(plot["size"])] = plot["text"]
                 for client in self.clients:
@@ -148,7 +148,7 @@ class Monitor(AbstractClient):
 
     def get_size(self):
         """Gets own random size"""
-        self.size = tuple(random.randrange(0, 1000) for i in range(0, 2))
+        self.size = tuple(random.randrange(0, 1000) for i in range(0, 2)) + (random.randRange(1, 3),)
 
     async def client_logic(self, socket):
         """awaits messages and randomly resizes"""
@@ -161,12 +161,11 @@ class Monitor(AbstractClient):
 
 class Source(AbstractClient):
     """Source client. Sends a given matplotlib figure"""
-    def __init__(self, fig, dpi, *args, **kwargs):
+    def __init__(self, fig, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dpi = dpi
         self.fig = fig
         self.sizes = [] # tuples
-        self.plots = {} # {(w, h): str}
+        self.plots = {} # {(w, h, d): str}
 
     @property
     def msg_register(self):
@@ -186,8 +185,10 @@ class Source(AbstractClient):
     def get_figures(self, sizes: list):
         """Gets plots at given sizes"""
         for size in sizes:
-            actual_size = tuple(i/self.dpi for i in size)
-            self.plots[tuple(size)] = plots.save_plot(self.fig, self.dpi, actual_size)
+            pixels = size[0:2]
+            dpi = size[2] * 100
+            inches = tuple(i/dpi for i in pixels)
+            self.plots[tuple(size)] = plots.save_plot(self.fig, dpi, inches)
 
     async def client_logic(self, socket):
         """Waits for server to tell us sizes, then creates plots and responds"""

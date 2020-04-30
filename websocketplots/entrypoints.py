@@ -32,13 +32,12 @@ def random():
     """Random plot entrypoint"""
     parser = argparse.ArgumentParser(description="Random plot source client")
     parser.add_argument("-u", "--uri", help="URI", default="ws://localhost:6789")
-    parser.add_argument("-d", "--dpi", help="DPI", default=96, type=int)
     parser.add_argument("-v", "--verbose", help="Be verbose", default=False, action="store_true")
     args = parser.parse_args()
     # Create a random plot
     fig = plots.random_plot()
     # Setup display
-    source = objects.Source(uri=args.uri, fig=fig, dpi=args.dpi, verbose=args.verbose)
+    source = objects.Source(uri=args.uri, fig=fig, verbose=args.verbose)
     asyncio.get_event_loop().run_until_complete(source.run())
 
 def send():

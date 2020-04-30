@@ -3,7 +3,7 @@
     <head>
         <title>WebSocket plot</title>
     </head>
-    <body>
+    <body style="margin: 0">
         <script>
             var ws = new WebSocket("ws://127.0.0.1:6789/"),
                 div = document.createElement('div');
@@ -11,13 +11,15 @@
             function sendSize() {
                 w = document.documentElement.clientWidth;
                 h = document.documentElement.clientHeight;
-                ws.send(JSON.stringify({size: [w, h], msg_type: "update"}));
+                s = devicePixelRatio;
+                ws.send(JSON.stringify({size: [w, h, s], msg_type: "update"}));
             }
             window.addEventListener("resize", sendSize);
             ws.onopen = function() {
                 w = document.documentElement.clientWidth;
                 h = document.documentElement.clientHeight;
-                ws.send(JSON.stringify({size: [w, h], msg_type: "register", client_type:"display"}));
+                s = devicePixelRatio;
+                ws.send(JSON.stringify({size: [w, h, s], msg_type: "register", client_type:"display"}));
             }
             ws.onmessage = function (event) {
                 data = JSON.parse(event.data);
