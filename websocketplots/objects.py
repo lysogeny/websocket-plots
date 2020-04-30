@@ -184,10 +184,11 @@ class Source(AbstractClient):
 
     def get_figures(self, sizes: list):
         """Gets plots at given sizes"""
+        base_dpi = 100
         for size in sizes:
             pixels = size[0:2]
-            dpi = size[2] * 96
-            inches = tuple(i/dpi for i in pixels)
+            dpi = size[2] * base_dpi
+            inches = tuple(i/base_dpi for i in pixels)
             self.plots[tuple(size)] = plots.save_plot(self.fig, dpi, inches)
 
     async def client_logic(self, socket):
