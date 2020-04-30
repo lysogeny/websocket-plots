@@ -186,7 +186,7 @@ class Source(AbstractClient):
         """Gets plots at given sizes"""
         for size in sizes:
             pixels = size[0:2]
-            dpi = size[2] * 100
+            dpi = size[2] * 96
             inches = tuple(i/dpi for i in pixels)
             self.plots[tuple(size)] = plots.save_plot(self.fig, dpi, inches)
 
